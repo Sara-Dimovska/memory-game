@@ -6,6 +6,7 @@ window.onload = function() {
     var numRows = 4;
     var tileSpacing = 10;
     var selectedArray= [];
+    var score=0;
 
     var  preloadAssets = function(game){}
     preloadAssets.prototype = {
@@ -50,18 +51,36 @@ window.onload = function() {
     var playScreen = function(game){}
     playScreen.prototype ={
         soundArray : [],
-
+        scoreText:null,
+        timeLeft :30,
+        timeLeftText:null,
 
         create: function(){
 
+            game.stage.disableVisibilityChange = true; // if user changes the focus, timer will continue counting
             this.placeTiles();
             if(playSound){
                 this.soundArray[0] = game.add.audio("select",1);
                 this.soundArray[1] = game.add.audio("right",1);
             }
-
+            var style = {
+                font: "48px Monospace",
+                fill: "#00ff00",
+                align: "center"
+            }
+            this.scoreText = game.add.text(5,5,"Score: "+score,style);
+            this.timeLeftText = game.add.text(5,game.height-52,"Time left: "+this.timeLeft,style);            
+            game.time.events.loop(Phaser.Timer.SECOND,this.decreaseTime,this);
 
         },
+        decreaseTime:function(){
+            this.timeLeft--;
+            this.timeLeftText.text = "Time left: " + this.timeLeft;
+            if(this.timeLeft == 0){
+                game.state.start("GameOver");
+            }
+        }
+        ,
         placeTiles:function(){
             //tilesLeft = numCols*numRows;
             var leftSpace = (game.width - (numCols * tileSize) - ((numCols - 1) * tileSpacing))/2;
@@ -73,38 +92,66 @@ window.onload = function() {
                 for(var j =0;j<numRows;j++){
                     var placingTile = game.add.button(leftSpace +i*(tileSize+tileSpacing),topSpace + j*(tileSize+tileSpacing),"tiles",this.showTile,this);              
                     placingTile.frame = 3;
-                    placingTile.value = tilesArray[j * numCols + i];
+                    placingTile.mValue = tilesArray[j * numCols + i];
                 }
             }
         }
         ,
-        showTile:function(context){
-
+        showTile:function(context){           
             if(selectedArray.length < 2 && selectedArray.indexOf(context) == -1 ){
                 if(playSound)
                     this.soundArray[0].play();
+
                 selectedArray.push(context);
-                context.frame = context.value;
+                context.frame = context.mValue;
             }
 
-            if(selectedArray.length == 2)
-                game.time.events.add(Phaser.Timer.QUARTER, this.checkTiles, this);
+            if(selectedArray.length == 2){
+                // this timer lasts half sec
+                game.time.events.add(Phaser.Timer.HALF, this.checkTiles, this);
+
+            }
 
         },
 
-        checkTiles:function(context){
-            if(selectedArray[0].value == selectedArray[1].value){ //match
+        checkTiles:function(){
+            if(selectedArray[0].mValue == selectedArray[1].mValue){ //match
 
                 if(playSound)
                     this.soundArray[1].play();
 
                 selectedArray[0].destroy();
                 selectedArray[1].destroy();
+                score++;
+                this.scoreText.text = "Score: "+score;
+
             }
+            else{ // do not match
+                selectedArray[0].frame = 3;
+                selectedArray[1].frame = 3;
+            }
+
             selectedArray.length = 0;
+        }
+
+    }
+
+    var gameOver = function(game){}
+    gameOver.prototype = {
+        create:function(){
+            var style = {
+                font: "32px Monospace",
+                fill: "#00ff00",
+                align: "center"
+            }
+            var text = game.add.text(game.width/2,game.height/2 - 100, "Game Over",style);
+            text.anchor.set(0.5);
+            text = game.add.text(game.width/2,game.height/2, "Your score is: "+score,style);
+            text.anchor.set(0.5);
         }
     }
 
+    game.state.add("GameOver",gameOver);
     game.state.add("PreloadAssets",preloadAssets);
     game.state.add("TitleScreen",titleScreen);
     game.state.add("PlayScreen",playScreen);
