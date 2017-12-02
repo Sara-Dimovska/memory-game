@@ -7,6 +7,11 @@ window.onload = function() {
     var tileSpacing = 10;
     var selectedArray= [];
     var score=0;
+    var tilesLeft;
+    var tilesArray =[];
+    var timeLeft;
+    var hightScore;
+    var localStorageKey = "flowers";
 
     var  preloadAssets = function(game){}
     preloadAssets.prototype = {
@@ -17,6 +22,11 @@ window.onload = function() {
             game.load.audio("right",["assets/sounds/right.mp3","assets/sounds/right.ogg"]);           
         },
         create: function(){
+            game.scale.pageAlignHorizontally = true;
+            game.scale.pageAlignVertically = true;
+            // sets the scaling method,  SHOW_ALL shows the game at the largest scale possible
+            game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+            
             game.state.start("TitleScreen");
         }
     }
@@ -24,6 +34,11 @@ window.onload = function() {
     var titleScreen = function(game){}
     titleScreen.prototype = {
         create: function(){
+            game.scale.pageAlignHorizontally = true;
+            game.scale.pageAlignVertically = true;
+            // sets the scaling method,  SHOW_ALL shows the game at the largest scale possible
+            game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;        
+            
             var style = {
                 font: "48px Monospace",
                 fill: "#00ff00",
@@ -52,11 +67,17 @@ window.onload = function() {
     playScreen.prototype ={
         soundArray : [],
         scoreText:null,
-        timeLeft :30,
         timeLeftText:null,
 
         create: function(){
-
+            game.scale.pageAlignHorizontally = true;
+            game.scale.pageAlignVertically = true;
+            // sets the scaling method,  SHOW_ALL shows the game at the largest scale possible
+            game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+            
+            score = 0;
+            timeLeft =60;
+            
             game.stage.disableVisibilityChange = true; // if user changes the focus, timer will continue counting
             this.placeTiles();
             if(playSound){
@@ -69,24 +90,33 @@ window.onload = function() {
                 align: "center"
             }
             this.scoreText = game.add.text(5,5,"Score: "+score,style);
-            this.timeLeftText = game.add.text(5,game.height-52,"Time left: "+this.timeLeft,style);            
+            this.timeLeftText = game.add.text(5,game.height-52,"Time left: "+timeLeft,style);            
             game.time.events.loop(Phaser.Timer.SECOND,this.decreaseTime,this);
 
         },
         decreaseTime:function(){
-            this.timeLeft--;
-            this.timeLeftText.text = "Time left: " + this.timeLeft;
-            if(this.timeLeft == 0){
+            timeLeft--;
+            this.timeLeftText.text = "Time left: " + timeLeft;
+            if(timeLeft == 0){
                 game.state.start("GameOver");
             }
         }
         ,
         placeTiles:function(){
-            //tilesLeft = numCols*numRows;
+            tilesLeft = numCols*numRows;
             var leftSpace = (game.width - (numCols * tileSize) - ((numCols - 1) * tileSpacing))/2;
             var topSpace = (game.height - (numRows * tileSize) - ((numRows - 1) * tileSpacing))/2;
-            var tilesArray = [0,0,1,1,2,2,4,4,5,5,6,6,7,7,8,8,9,9,10,10];
+            tilesArray = [0,0,1,1,2,2,4,4,5,5,6,6,7,7,8,8,9,9,10,10];
 
+            // shufle the array      
+             for(i = 0; i < numRows * numCols; i++){
+                // rnd.between(min, max)
+                var from = game.rnd.between(0,tilesArray.length-1);
+                var to = game.rnd.between(0, tilesArray.length-1);
+                var temp = tilesArray[from];
+                tilesArray[from] = tilesArray[to];
+                tilesArray[to] = temp;
+            }
 
             for(i=0;i<numCols;i++){
                 for(var j =0;j<numRows;j++){
@@ -122,8 +152,18 @@ window.onload = function() {
 
                 selectedArray[0].destroy();
                 selectedArray[1].destroy();
+                tilesLeft -= 2;
                 score++;
+                timeLeft += 2;
                 this.scoreText.text = "Score: "+score;
+                this.timeLeftText.text = "Time left: " + timeLeft;
+                
+                // if user matches all tiles, reset the game
+                if(tilesLeft == 0){
+                    tilesArray.length =0;
+                    selectedArray.length=0;
+                    this.placeTiles();
+                }
 
             }
             else{ // do not match
@@ -131,7 +171,7 @@ window.onload = function() {
                 selectedArray[1].frame = 3;
             }
 
-            selectedArray.length = 0;
+            selectedArray.length = 0; // empty selested array
         }
 
     }
@@ -139,15 +179,36 @@ window.onload = function() {
     var gameOver = function(game){}
     gameOver.prototype = {
         create:function(){
+            game.scale.pageAlignHorizontally = true;
+            game.scale.pageAlignVertically = true;
+            // sets the scaling method,  SHOW_ALL shows the game at the largest scale possible
+            game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+            
             var style = {
                 font: "32px Monospace",
                 fill: "#00ff00",
                 align: "center"
             }
+            
+            hightScore = Math.max(score,hightScore);
+            // change the nighScore in localStorage
+            localStorage.setItem(localStorageKey,hightScore);
+            
             var text = game.add.text(game.width/2,game.height/2 - 100, "Game Over",style);
             text.anchor.set(0.5);
             text = game.add.text(game.width/2,game.height/2, "Your score is: "+score,style);
             text.anchor.set(0.5);
+            text = game.add.text(game.width/2,game.height/2 + 50, "High score: "+hightScore,style);
+            text.anchor.set(0.5);
+            text = game.add.text(game.width/2,game.height/2 + 150, "Tap to restart",style);
+            text.anchor.set(0.5);
+            game.input.onDown.add(this.restartGame,this);
+        },
+        restartGame:function(){
+            tilesArray.length = 0;
+            selectedArray.length = 0;
+            game.state.start("TitleScreen");
+            
         }
     }
 
@@ -155,5 +216,9 @@ window.onload = function() {
     game.state.add("PreloadAssets",preloadAssets);
     game.state.add("TitleScreen",titleScreen);
     game.state.add("PlayScreen",playScreen);
+    
+    // get the hightScore before launching
+    hightScore = localStorage.getItem(localStorageKey) == null ? 0 :  localStorage.getItem(localStorageKey);
+    
     game.state.start("PreloadAssets");
 }
